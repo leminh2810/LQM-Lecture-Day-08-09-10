@@ -10,6 +10,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple
 
+from transform.cleaning_rules import ALLOWED_DOC_IDS
+
 
 @dataclass
 class ExpectationResult:
@@ -26,6 +28,13 @@ def run_expectations(cleaned_rows: List[Dict[str, Any]]) -> Tuple[List[Expectati
     should_halt = True nếu có bất kỳ expectation severity halt nào fail.
     """
     results: List[ExpectationResult] = []
+    required_doc_ids = {
+        "policy_refund_v4",
+        "sla_p1_2026",
+        "it_helpdesk_faq",
+        "hr_leave_policy",
+        "access_control_sop",
+    }
 
     # E1: có ít nhất 1 dòng sau clean
     ok = len(cleaned_rows) >= 1
@@ -109,6 +118,58 @@ def run_expectations(cleaned_rows: List[Dict[str, Any]]) -> Tuple[List[Expectati
             ok6,
             "halt",
             f"violations={len(bad_hr_annual)}",
+        )
+    )
+
+    # E7: cleaned không được chứa nguồn ngoài allowlist (phát hiện catalog/source map drift)
+    disallowed_doc_ids = sorted(
+        {
+            (r.get("doc_id") or "").strip()
+            for r in cleaned_rows
+            if (r.get("doc_id") or "").strip() not in ALLOWED_DOC_IDS
+        }
+    )
+    ok7 = len(disallowed_doc_ids) == 0
+    results.append(
+        ExpectationResult(
+            "cleaned_doc_ids_in_allowlist",
+            ok7,
+            "halt",
+            f"disallowed_doc_ids={disallowed_doc_ids}",
+        )
+    )
+
+    # E8: mọi source cần cho grading phải xuất hiện sau clean, tránh quarantine nhầm source hợp lệ.
+    present_doc_ids = {
+        (r.get("doc_id") or "").strip()
+        for r in cleaned_rows
+        if (r.get("doc_id") or "").strip()
+    }
+    missing_required = sorted(required_doc_ids - present_doc_ids)
+    ok8 = len(missing_required) == 0
+    results.append(
+        ExpectationResult(
+            "required_grading_sources_present",
+            ok8,
+            "halt",
+            f"missing_doc_ids={missing_required}",
+        )
+    )
+
+    # E9: marker nhiễu từ export không được lọt vào cleaned content.
+    noisy_rows = [
+        r
+        for r in cleaned_rows
+        if (r.get("chunk_text") or "").startswith("Nội dung không rõ ràng:")
+        or (r.get("chunk_text") or "").startswith("!!!")
+    ]
+    ok9 = len(noisy_rows) == 0
+    results.append(
+        ExpectationResult(
+            "no_export_noise_markers",
+            ok9,
+            "warn",
+            f"noisy_rows={len(noisy_rows)}",
         )
     )
 

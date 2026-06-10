@@ -1,11 +1,49 @@
+# Environment / secrets
 .env
+.env.*
+!.env.example
+
+# Virtual environments
 .venv/
 venv/
-__pycache__/
-*.pyc
-.DS_Store
-chroma_db/
-.pytest_cache/
-*.log
+env/
 
-artifacts/*
+# Python cache / test cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Local vector database and model/runtime caches
+chroma_db/
+.chromadb/
+.cache/
+
+# Logs and temporary runtime output
+*.log
+artifacts/logs/*.log
+artifacts/uploads/
+
+# Keep artifact folders in git, but ignore regenerated bulk outputs by default.
+# If your instructor requires final artifacts, force-add the specific files:
+#   git add -f artifacts/eval/grading_run.jsonl artifacts/eval/eval_after_fix.csv
+artifacts/cleaned/*.csv
+artifacts/quarantine/*.csv
+artifacts/manifests/*.json
+artifacts/eval/*.csv
+artifacts/eval/*.jsonl
+!artifacts/**/.gitkeep
+
+# Local dashboard captures / ad-hoc exports
+*.tmp
+*.bak
